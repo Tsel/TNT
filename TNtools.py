@@ -60,6 +60,18 @@ def readedgelist(fnedgelist, dtypes, dates=None, nrows=None):
                        nrows = nrows
                        )
 
+def process_commodity_dict(e, d, hasedge=False):
+    s,t,v,c = e
+    if hasedge == False:
+        d[c]=v
+    else:
+        if c in d:
+            d[c].value = d[c].value + v
+        else:
+            d[c] = v
+
+    return d
+
 
 def from_edgelist(el, G):
     """
@@ -97,14 +109,18 @@ def from_edgelist(el, G):
     ))
     for e in edges:
         s,t,v,c = e
-        print('edge is', e)
+        # print('edge is', e)
         # print(s,t,v)
         if G.has_edge(s,t):
             G[s][t]['VOL'] += v
             G[s][t]['FREQ'] += 1
-            G[s][t]['COMMODITY'] = G[s][t]['COMMODITY'] + " " + c
+            # G[s][t]['COMMODITY'] = G[s][t]['COMMODITY'] + " " + c
+            G[s][t]['COMMODITY'] = process_commodity_dict(e, G[s][t]['COMMODITY'], G.has_edge(s,t))
         else:
-            G.add_edge(s, t, VOL=v, FREQ = 1, COMMODITY = c)
+            commo_dict = {}
+            pcd = process_commodity_dict(e, commo_dict, G.has_edge(s,t))
+            # print('pcd : ', pcd)
+            G.add_edge(s, t, VOL=v, FREQ = 1, COMMODITY = pcd)
 
     return G
 
@@ -182,18 +198,14 @@ if __name__ == "__main__":
     G = from_edgelist(el, nx.DiGraph())     # From edgelist muss immer angepasst werden
     print("Number of edges           :", nx.number_of_edges(G))
     print("Frequency of trade Volume : ", frequence_of_attribute(G, "VOL"))
-    print("Frequency of Commodity    : ", frequence_of_attribute(G, "COMMODITY"))
+    # print("Frequency of Commodity    : ", frequence_of_attribute(G, "COMMODITY"))
     print("Stats of trade volume     : ", stats_of_attribute(G, "VOL"))
     # print(G.edges(data=True))
     # pivot_att(G)
     #
     # Kanten ausgeben
-    for _, _, a in G.edges(data=True):
-        trade_vol  = a.get("VOL")
-        trade_what = a.get("COMMODITY")
-        trade_divers = word_count(trade_what)
-        if trade_divers > 1:
-            print(trade_what, trade_vol)
+    for e in G.edges(data=True):
+        print('Edge :', e)
     # data = att_to_list(G, att="VOL")
     # sns.set_style('whitegrid')
     # sns.distplot(np.log10(np.array(data)), rug=True)

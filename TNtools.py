@@ -74,6 +74,7 @@ def process_commodity_dict(e, d, hasedge=False):
 
 
 def from_edgelist(el, G):
+    # TODO: COMMODITY is a specific feature of this project.
     """
     Minimum information which must be included in the dataframe el include a column with eindeuteige Kennung der source nodes
     and a column with eindeutiger Kennung target nodes which must be denoted with "S" and "T" in the edgelist.
@@ -101,26 +102,40 @@ def from_edgelist(el, G):
     :param G: type of graph generated, diGraph, Graph, etc.
     :return: a graph object
     """
-    edges = list(zip(
-        el['S'].values.tolist(),
-        el['T'].values.tolist(),
-        el['VOL'].values.tolist(),
-        el['TYPE'].values.tolist()
-    ))
-    for e in edges:
-        s,t,v,c = e
-        # print('edge is', e)
-        # print(s,t,v)
-        if G.has_edge(s,t):
-            G[s][t]['VOL'] += v
-            G[s][t]['FREQ'] += 1
-            # G[s][t]['COMMODITY'] = G[s][t]['COMMODITY'] + " " + c
-            G[s][t]['COMMODITY'] = process_commodity_dict(e, G[s][t]['COMMODITY'], G.has_edge(s,t))
-        else:
-            commo_dict = {}
-            pcd = process_commodity_dict(e, commo_dict, G.has_edge(s,t))
-            # print('pcd : ', pcd)
-            G.add_edge(s, t, VOL=v, FREQ = 1, COMMODITY = pcd)
+    if 'TYPE' in el.columns():
+        edges = list(zip(
+            el['S'].values.tolist(),
+            el['T'].values.tolist(),
+            el['VOL'].values.tolist(),
+            el['TYPE'].values.tolist()
+        ))
+        for e in edges:
+            s,t,v,c = e
+            # print('edge is', e)
+            # print(s,t,v)
+            if G.has_edge(s,t):
+                G[s][t]['VOL'] += v
+                G[s][t]['FREQ'] += 1
+                G[s][t]['DOG'] = G[s][t]['DOG'] + " " + c       # DOG := Description Of Goods
+                G[s][t]['COMMODITY'] = process_commodity_dict(e, G[s][t]['COMMODITY'], G.has_edge(s,t))
+            else:
+                commo_dict = {}
+                pcd = process_commodity_dict(e, commo_dict, G.has_edge(s,t))
+                # print('pcd : ', pcd)
+                G.add_edge(s, t, VOL=v, FREQ = 1, DOG = c, COMMODITY = pcd)
+    else:
+        edges = list(zip(
+            el['S'].values.tolist(),
+            el['T'].values.tolist(),
+            el['VOL'].values.tolist(),
+        ))
+        for e in edges:
+            s,t,v, = e
+            if G.has_edge(s,t):
+                G[s][t]['VOL'] += v
+                G[s][t]['FREQ'] += 1
+            else:
+                G.add_edge(s, t, VOL=v, FREQ = 1)
 
     return G
 
@@ -150,6 +165,7 @@ def word_count(string):
 
 
 def pivot_att(G):
+    # TODO: Pivot, Attribute nach Funktionsparamters
     vol = att_to_list(G, att="VOL")
     freq = att_to_list(G, att="FREQ")
     como = att_to_list(G, att='COMMODITY')
@@ -172,8 +188,7 @@ if __name__ == "__main__":
     # * filename
     # * data types
     # * the variables used are dates.
-    #"/Users/TOSS/Documents/Projects/ReportingDelay/data/Delay2006.csv"
-    fn_edgelist = "/Users/TOSS/Documents/EdgeLists/ZNVG_type_Transported.csv"
+    fn_edgelist = "/Users/TOSS/Documents/Projects/ReportingDelay/data/Delay2006.csv"
     dtypes = {"S": str, "T": str, "TYPE":str, "VOL": int, "log10VOL":float}
     el = readedgelist(fn_edgelist, dtypes=dtypes, dates=None, )
     #
@@ -203,9 +218,27 @@ if __name__ == "__main__":
     # print(G.edges(data=True))
     # pivot_att(G)
     #
+    # outdegree of node
+    print(G.in_degree())
+    print(G.out_degree())
+    print(G.degree)
     # Kanten ausgeben
     for e in G.edges(data=True):
-        print('Edge :', e)
+       print('Edge :', e)
+
+    print(att_to_list(G, att="DOG"))
+    #
+    # Hier haben wir ein directory von allen ausgehenden Kanten von 208... mit den zugehoerigen Informationen
+    print(G['208000000000000'])
+    print(nx.degree_assortativity_coefficient(G, x='out', y='in'))
+    # TODO: Change node name by degree
+    # if you want to change all the keys:
+    # d = {'x':1, 'y':2, 'z':3}
+    # d1 = {'x':'a', 'y':'b', 'z':'c'}
+    # In [10]: dict((d1[key], value) for (key, value) in d.items())
+    # Out[10]: {'a': 1, 'b': 2, 'c': 3}
+    print(nx.average_neighbor_degree(G, target='in'))
+    print(nx.k_nearest_neighbors(G, target='in'))
     # data = att_to_list(G, att="VOL")
     # sns.set_style('whitegrid')
     # sns.distplot(np.log10(np.array(data)), rug=True)
